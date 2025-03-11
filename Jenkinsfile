@@ -6,7 +6,15 @@ pipeline {
             steps {
                 echo 'Lab_1: nginx/custom'
             }
-    }
+        }
+
+        stage('Info') {
+            steps {
+                echo 'Student: Khrystyna Dutka'
+                echo 'Group: ITPA-11'
+                echo 'Lab completed successfully!'
+            }
+        }
 
         stage('Build nginx/custom') {
             steps {
