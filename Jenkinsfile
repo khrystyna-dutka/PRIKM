@@ -27,11 +27,13 @@ pipeline {
                 echo 'Pass'
             }
         }
-
         stage('Deploy nginx/custom') {
             steps {
                 sh '''
-                    docker ps -q --filter "ancestor=nginx/custom:latest" | xargs -r docker stop
+                    # Знайти контейнери, що використовують порт 80 і зупинити їх
+                    docker ps --filter "publish=80" -q | xargs -r docker stop
+                    
+                    # Запустити новий контейнер
                     docker run -d -p 80:80 nginx/custom:latest
                 '''
             }
