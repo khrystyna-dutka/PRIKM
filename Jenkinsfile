@@ -28,9 +28,12 @@ pipeline {
             }
         }
 
-        stage('Deploy nginx/custom'){
-            steps{
-                sh "docker run -d -p 80:80 nginx/custom:latest"
+        stage('Deploy nginx/custom') {
+            steps {
+                sh '''
+                    docker ps -q --filter "ancestor=nginx/custom:latest" | xargs -r docker stop
+                    docker run -d -p 80:80 nginx/custom:latest
+                '''
             }
         }
     }
