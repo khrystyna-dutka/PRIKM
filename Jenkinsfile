@@ -30,21 +30,24 @@ pipeline {
                 }
             }
         }
-
         stage('Deploy image') {
             steps {
                 echo 'Deploying container...'
-                // Stop any container that is using port 8080
+
+                // Stop any container using port 8080 (if it's running)
                 sh '''
-                    CONTAINER_ID=$(docker ps -q -f "ancestor=khrystynadutka/prikm:latest" -f "publish=8080")
+                    CONTAINER_ID=$(docker ps -q -f "publish=8080")
                     if [ -n "$CONTAINER_ID" ]; then
                         echo "Stopping container using port 8080..."
                         docker stop $CONTAINER_ID
+                        docker rm $CONTAINER_ID
                     fi
                 '''
+                
                 // Run the new container
                 sh 'docker run -d -p 8080:80 khrystynadutka/prikm:latest'
             }
         }
+
     }
 }
