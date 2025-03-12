@@ -24,7 +24,7 @@ pipeline {
 
         stage('Push to registry') {
             steps {
-                withDockerRegistry([credentialsId: 'dockerhub_token', url: 'https://index.docker.io/v1/']) {
+                withDockerRegistry([credentialsId: 'dockerhub_token', url: '']) {
                     sh 'docker push khrystynadutka/prikm:latest'
                     sh 'docker push khrystynadutka/prikm:4'
                 }
