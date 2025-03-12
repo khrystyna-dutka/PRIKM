@@ -4,38 +4,28 @@ pipeline {
     stages {
         stage('Start') {
             steps {
-                echo 'Lab_1: nginx/custom'
+                echo 'Lab_2: started by GitHub'
             }
         }
-
-        stage('Info') {
+        stage('Image build') {
             steps {
-                echo 'Student: Khrystyna Dutka'
-                echo 'Group: ITPA-11'
-                echo 'Lab completed successfully!'
+                sh "docker build -t prikm:latest ."
+                sh "docker tag prikm khrystynadutka_dockerhub/prikm:latest"
+                sh "docker tag prikm hrystynadutka_dockerhub/prikm:$BUILD_NUMBER"
             }
         }
-
-        stage('Build nginx/custom') {
+        stage('Push to registry') {
             steps {
-                sh 'docker build -t nginx/custom:latest .'
+                withDockerRegistry([ credentialsId: "dockerhub_token", url: "" ])
+                {
+                    sh "docker push hrystynadutka_dockerhub/prikm:latest"
+                    sh "docker push hrystynadutka_dockerhub/prikm:$BUILD_NUMBER"
+                }
             }
         }
-
-        stage('Test nginx/custom') {
-            steps {
-                echo 'Pass'
-            }
-        }
-        stage('Deploy nginx/custom') {
-            steps {
-                sh '''
-                    # Знайти контейнери, що використовують порт 80 і зупинити їх
-                    docker ps --filter "publish=80" -q | xargs -r docker stop
-                    
-                    # Запустити новий контейнер
-                    docker run -d -p 80:80 nginx/custom:latest
-                '''
+        stage('Deploy image') {
+            steps{
+                sh "docker run -d -p 80:80 hrystynadutka_dockerhub/prikm"
             }
         }
     }
