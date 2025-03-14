@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        BUILD_VERSION = new Date().format("yyyyMMddHHmmss")
+    }
+
     stages {
         stage("Checkout") {
             steps {
@@ -25,7 +29,7 @@ pipeline {
                         </head>
                         <body>
                             <h2>Hello from Docker, launched by Jenkins, triggered by GitHub</h2>
-                            <p>Build version: $(date)</p>
+                            <p>Build version: ${BUILD_VERSION}</p>
                         </body>
                     </html>" > index.html
                 '''
@@ -34,23 +38,17 @@ pipeline {
 
         stage("Image build") {
             steps {
-                script {
-                    def BUILD_VERSION = new Date().format("yyyyMMddHHmmss")
-                    sh "docker build -t prikm:${BUILD_VERSION} ."
-                    sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:latest"
-                    sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:${BUILD_VERSION}"
-                }
+                sh "docker build -t prikm:${BUILD_VERSION} ."
+                sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:latest"
+                sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:${BUILD_VERSION}"
             }
         }
 
         stage("Push to registry") {
             steps {
                 withDockerRegistry([credentialsId: "dockerhub_token", url: ""]) {
-                    script {
-                        def BUILD_VERSION = new Date().format("yyyyMMddHHmmss")
-                        sh "docker push khrystynadutka/prikm:latest"
-                        sh "docker push khrystynadutka/prikm:${BUILD_VERSION}"
-                    }
+                    sh "docker push khrystynadutka/prikm:latest"
+                    sh "docker push khrystynadutka/prikm:${BUILD_VERSION}"
                 }
             }
         }
@@ -58,18 +56,15 @@ pipeline {
         stage("Deploy image") {
             steps {
                 echo "Deploying container..."
-                script {
-                    sh '''
-                        CONTAINER_ID=$(docker ps -q -f "publish=8081")
-                        if [ -n "$CONTAINER_ID" ]; then
-                            echo "Stopping existing container..."
-                            docker stop $CONTAINER_ID
-                            docker rm $CONTAINER_ID
-                        fi
-                    '''
-                    def BUILD_VERSION = new Date().format("yyyyMMddHHmmss")
-                    sh "docker run -d -p 8081:80 khrystynadutka/prikm:latest"
-                }
+                sh '''
+                    CONTAINER_ID=$(docker ps -q -f "publish=8081")
+                    if [ -n "$CONTAINER_ID" ]; then
+                        echo "Stopping existing container..."
+                        docker stop $CONTAINER_ID
+                        docker rm $CONTAINER_ID
+                    fi
+                '''
+                sh "docker run -d -p 8081:80 khrystynadutka/prikm:${BUILD_VERSION}"
             }
         }
 
@@ -81,6 +76,5 @@ pipeline {
                 '''
             }
         }
-
     }
 }
