@@ -3,20 +3,12 @@
     <head>
         <meta charset="utf-8">
         <title>Lab_2</title>
-        <script>
-            // Випадковий колір для заголовка при кожному білді
-            document.addEventListener("DOMContentLoaded", function() {
-                var colors = ["red", "blue", "green", "purple", "orange"];
-                var randomColor = colors[Math.floor(Math.random() * colors.length)];
-                document.getElementById("title").style.color = randomColor;
-            });
-        </script>
     </head>
     <body>
-        <h2 id="title">Hello from Docker, launched by Jenkins, triggered by GitHub</h2>
-        <p>Build timestamp: <span id="timestamp"></span></p>
+        <h2>Hello from Docker, launched by Jenkins, triggered by GitHub</h2>
+        <p>Build version: <span id="build-version"></span></p>
         <script>
-            document.getElementById("timestamp").innerText = new Date().toLocaleString();
+            document.getElementById("build-version").innerText = new Date().toLocaleString();
         </script>
     </body>
 </html>
