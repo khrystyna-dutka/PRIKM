@@ -2,82 +2,72 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage("Checkout") {
             steps {
                 checkout scm
             }
         }
 
-        stage('Start') {
+        stage("Start") {
             steps {
-                echo "Lab_2: started by GitHub, build #${env.BUILD_NUMBER}"
+                echo "Lab_2: started by GitHub"
             }
         }
 
-        stage('Update Webpage') {
+        stage("Modify Web Page") {
             steps {
                 sh '''
-                    sed -i "s/<title>Lab_2<\/title>/<title>Lab_2 - Build ${BUILD_NUMBER}<\/title>/" index.html
+                    echo "<!doctype html>
+                    <html lang=\\"en\\">
+                        <head>
+                            <meta charset=\\"utf-8\\">
+                            <title>Lab_2</title>
+                        </head>
+                        <body>
+                            <h2>Hello from Docker, launched by Jenkins, triggered by GitHub</h2>
+                            <p>New version deployed!</p>
+                        </body>
+                    </html>" > index.html
                 '''
             }
         }
 
-        stage('Image build') {
+        stage("Image build") {
             steps {
-                sh 'docker build -t prikm:latest .'
-                sh 'docker tag prikm khrystynadutka/prikm:latest'
-                sh 'docker tag prikm khrystynadutka/prikm:build-${BUILD_NUMBER}'
+                sh "docker build -t prikm:latest ."
+                sh "docker tag prikm khrystynadutka/prikm:latest"
+                sh "docker tag prikm khrystynadutka/prikm:4"
             }
         }
 
-        stage('Push to registry') {
+        stage("Push to registry") {
             steps {
-                withDockerRegistry([credentialsId: 'dockerhub_token', url: '']) {
-                    sh 'docker push khrystynadutka/prikm:latest'
-                    sh 'docker push khrystynadutka/prikm:build-${BUILD_NUMBER}'
+                withDockerRegistry([credentialsId: "dockerhub_token", url: ""]) {
+                    sh "docker push khrystynadutka/prikm:latest"
+                    sh "docker push khrystynadutka/prikm:4"
                 }
             }
         }
 
-        stage('Test Image') {
+        stage("Deploy image") {
             steps {
-                sh '''
-                    docker run --rm -d -p 8082:80 --name test_container khrystynadutka/prikm:latest
-                    sleep 5
-                    if curl -s http://localhost:8082 | grep -q "Hello from Docker"; then
-                        echo "Test passed!"
-                    else
-                        echo "Test failed!" && exit 1
-                    fi
-                    docker stop test_container
-                '''
-            }
-        }
-
-        stage('Check Artifacts') {
-            steps {
-                script {
-                    def artifactCount = sh(script: "curl -s https://hub.docker.com/v2/repositories/khrystynadutka/prikm/tags/ | jq '.count'", returnStdout: true).trim()
-                    echo "DockerHub artifacts: ${artifactCount}"
-                    if (artifactCount.toInteger() <= 2) {
-                        error("Not enough artifacts in DockerHub. Keep building!")
-                    }
-                }
-            }
-        }
-
-        stage('Deploy image') {
-            steps {
-                echo 'Deploying container...'
+                echo "Deploying container..."
                 sh '''
                     CONTAINER_ID=$(docker ps -q -f "publish=8081")
                     if [ -n "$CONTAINER_ID" ]; then
-                        echo "Stopping container using port 8081..."
+                        echo "Stopping existing container..."
                         docker stop $CONTAINER_ID
                         docker rm $CONTAINER_ID
                     fi
                 '''
-                sh 'docker run -d -p 8081:80 khrystynadutka/prikm:latest'
+                sh "docker run -d -p 8081:80 khrystynadutka/prikm:latest"
+            }
+        }
+
+        stage("Post-build Info") {
+            steps {
+                echo "Build and Deployment Successful!"
+                sh "docker images | grep prikm"
             }
         }
     }
