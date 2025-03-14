@@ -76,8 +76,11 @@ pipeline {
         stage("Check DockerHub Artifacts") {
             steps {
                 echo "Checking DockerHub repository..."
-                sh "curl -s https://hub.docker.com/v2/repositories/khrystynadutka/prikm/tags/ | jq '.count'"
+                sh '''
+                    curl -s https://hub.docker.com/v2/repositories/khrystynadutka/prikm/tags/ | grep -o '"name":' | wc -l
+                '''
             }
         }
+
     }
 }
