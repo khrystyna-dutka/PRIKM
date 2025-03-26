@@ -1,79 +1,74 @@
 pipeline {
     agent any
 
-    environment {
-        BUILD_VERSION = new Date().format("yyyyMMddHHmmss")
-    }
-
     stages {
-        stage("Checkout") {
+        stage('Start') {
             steps {
-                checkout scm
+                echo 'Lab_2: started by GitHub'
             }
         }
 
-        stage("Start") {
+        stage('Insert Build Version') {
             steps {
-                echo "Lab_2: started by GitHub"
+                echo "Inserting build version into index.html..."
+                sh """
+                    sed -i '/<!-- Jenkins will insert build info here -->/a <p><strong>Build number:</strong> ${BUILD_NUMBER}</p>' index.html
+                """
             }
         }
 
-        stage("Modify Web Page") {
+        stage('Build Docker Image') {
             steps {
-                sh '''
-                    echo "<!doctype html>
-                    <html lang=\\"en\\">
-                        <head>
-                            <meta charset=\\"utf-8\\">
-                            <title>Lab_2</title>
-                        </head>
-                        <body>
-                            <h2>Hello from Docker, launched by Jenkins, triggered by GitHub</h2>
-                            <p>Build version: ${BUILD_VERSION}</p>
-                        </body>
-                    </html>" > index.html
-                '''
+                sh "docker build -t prikm:latest ."
+                sh "docker tag prikm khrystynadutka/prikm:latest"
+                sh "docker tag prikm khrystynadutka/prikm:${BUILD_NUMBER}"
+                sh "docker tag prikm khrystynadutka/prikm:dev"
             }
         }
 
-        stage("Image build") {
+        stage('Push to DockerHub') {
             steps {
-                sh "docker build -t prikm:${BUILD_VERSION} ."
-                sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:latest"
-                sh "docker tag prikm:${BUILD_VERSION} khrystynadutka/prikm:${BUILD_VERSION}"
-            }
-        }
-
-        stage("Push to registry") {
-            steps {
-                withDockerRegistry([credentialsId: "dockerhub_token", url: ""]) {
+                withDockerRegistry([credentialsId: 'dockerhub_token', url: '']) {
                     sh "docker push khrystynadutka/prikm:latest"
-                    sh "docker push khrystynadutka/prikm:${BUILD_VERSION}"
+                    sh "docker push khrystynadutka/prikm:${BUILD_NUMBER}"
+                    sh "docker push khrystynadutka/prikm:dev"
                 }
             }
         }
 
-        stage("Deploy image") {
+        stage('Deploy Docker Container') {
             steps {
-                echo "Deploying container..."
+                echo "Checking and stopping old container (if running)..."
                 sh '''
-                    CONTAINER_ID=$(docker ps -q -f "publish=8081")
+                    CONTAINER_ID=$(docker ps -q --filter "publish=80")
                     if [ -n "$CONTAINER_ID" ]; then
-                        echo "Stopping existing container..."
+                        echo "Stopping container $CONTAINER_ID"
                         docker stop $CONTAINER_ID
                         docker rm $CONTAINER_ID
                     fi
                 '''
-                sh "docker run -d -p 8081:80 khrystynadutka/prikm:${BUILD_VERSION}"
+                echo "Running new container..."
+                sh "docker run -d -p 80:80 khrystynadutka/prikm:${BUILD_NUMBER}"
             }
         }
 
-        stage("Check DockerHub Artifacts") {
+        stage('Check DockerHub Artifacts') {
             steps {
-                echo "Checking DockerHub repository..."
-                sh '''
-                    curl -s https://hub.docker.com/v2/repositories/khrystynadutka/prikm/tags/ | grep -o '"name":' | wc -l
-                '''
+                script {
+                    def output = sh(
+                        script: "curl -s https://hub.docker.com/v2/repositories/khrystynadutka/prikm/tags/ | grep -o '\"name\":' | wc -l",
+                        returnStdout: true
+                    ).trim()
+
+                    def count = output.toInteger()
+                    echo "Current artifact count: ${count}"
+
+                    if (count < 2) {
+                        error("Недостатньо артефактів на DockerHub (менше 2). Лабораторну не зараховано.")
+                    } else {
+                        echo "Умова виконана: є щонайменше 2 артефакти на DockerHub."
+                    }
+                }
             }
         }
     }
