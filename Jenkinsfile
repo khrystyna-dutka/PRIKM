@@ -20,12 +20,6 @@ pipeline {
             }
         }
 
-        stage('Clone Dockerfile') {
-            steps {
-                git url: 'https://github.com/твій-користувач/lab7-vault-jenkins.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
