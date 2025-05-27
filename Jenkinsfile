@@ -1,41 +1,46 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "khrystynadutka/prikm"
+        IMAGE_TAG = "lab7"
+    }
+
     stages {
-        stage('Start') {
+        stage('Get Secrets and Docker Login') {
             steps {
-                echo 'Lab_1: nginx/custom'
+                script {
+                    def dockerUser = sh(script: "hcp vault-secrets secrets open docker_username | grep 'Value:' | cut -d':' -f2-", returnStdout: true).trim()
+                    def dockerPass = sh(script: "hcp vault-secrets secrets open docker_password | grep 'Value:' | cut -d':' -f2-", returnStdout: true).trim()
+
+                    withEnv(["DOCKER_USERNAME=${dockerUser}", "DOCKER_PASSWORD=${dockerPass}"]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                    }
+                }
             }
         }
 
-        stage('Info') {
+        stage('Clone Dockerfile') {
             steps {
-                echo 'Student: Khrystyna Dutka'
-                echo 'Group: ITPA-11'
-                echo 'Lab completed successfully!'
+                git url: 'https://github.com/твій-користувач/lab7-vault-jenkins.git'
             }
         }
 
-        stage('Build nginx/custom') {
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t nginx/custom:latest .'
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        stage('Test nginx/custom') {
+        stage('Push to DockerHub') {
             steps {
-                echo 'Pass'
+                sh 'docker push ${IMAGE_NAME}:${IMAGE_TAG}'
             }
         }
-        stage('Deploy nginx/custom') {
+
+        stage('Test Run') {
             steps {
-                sh '''
-                    # Знайти контейнери, що використовують порт 80 і зупинити їх
-                    docker ps --filter "publish=80" -q | xargs -r docker stop
-                    
-                    # Запустити новий контейнер
-                    docker run -d -p 80:80 nginx/custom:latest
-                '''
+                sh 'docker run --rm ${IMAGE_NAME}:${IMAGE_TAG}'
             }
         }
     }
