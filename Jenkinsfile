@@ -8,6 +8,11 @@ properties([
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "khrystynadutka/prikm"
+        IMAGE_TAG = "lab7"
+    }
+
     stages {
 
         stage('Notify Plan to Teams') {
@@ -37,6 +42,15 @@ Jenkins Pipeline Execution Plan
                     def jsonText = readFile 'config.json'
                     def config = readJSON text: jsonText
                     echo "Project name from config: ${config.project_name}"
+        stage('Get Secrets and Docker Login') {
+            steps {
+                script {
+                    def dockerUser = sh(script: "hcp vault-secrets secrets open docker_username | grep 'Value:' | cut -d':' -f2-", returnStdout: true).trim()
+                    def dockerPass = sh(script: "hcp vault-secrets secrets open docker_password | grep 'Value:' | cut -d':' -f2-", returnStdout: true).trim()
+
+                    withEnv(["DOCKER_USERNAME=${dockerUser}", "DOCKER_PASSWORD=${dockerPass}"]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                    }
                 }
             }
         }
@@ -80,6 +94,24 @@ Jenkins Pipeline Execution Plan
         unstable {
             echo 'Pipeline is unstable.'
             office365ConnectorSend webhookUrl: 'https://lpnu.webhook.office.com/webhookb2/b298a7be-7ec9-4a23-aa5b-dbab38c1ed04@7631cd62-5187-4e15-8b8e-ef653e366e7a/JenkinsCI/aae6109ee7a8417d94c828ccc3cc2127/294e4ebb-5ec1-414e-8bf6-c622514c87e0/V2AluwY5OWDusU78Ettb7969tf-FSHMrKdIBdcs8ULU041', message: "Pipeline is unstable for environment: ${params.DEPLOY_ENV}"
+        }
+    }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                sh 'docker push ${IMAGE_NAME}:${IMAGE_TAG}'
+            }
+        }
+
+        stage('Test Run') {
+            steps {
+                sh 'docker run --rm ${IMAGE_NAME}:${IMAGE_TAG}'
+            }
         }
     }
 }
